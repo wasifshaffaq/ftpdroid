@@ -14,14 +14,6 @@
 
 ---
 
-## 📸 visual Preview
-
-<p align="center">
-  <img src="https://via.placeholder.com/800x450.png?text=FTPDroid+Material+3+Expressive+UI+Overview" alt="FTPDroid UI Preview" width="800">
-</p>
-
----
-
 ## 🚀 core Features
 
 ### 🛠️ Professional Client Mode
