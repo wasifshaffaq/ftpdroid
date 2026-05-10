@@ -1,115 +1,121 @@
 # 📡 FTPDroid
 
-[![Version](https://img.shields.io/github/v/release/yourusername/ftpdroid?color=%2300BCD4&label=Latest%20Release&style=for-the-badge)](https://github.com/yourusername/ftpdroid/releases/latest)
-[![License](https://img.shields.io/github/license/yourusername/ftpdroid?color=orange&style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Android-green?style=for-the-badge&logo=android)](https://www.android.com/)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0%2B-blue?style=for-the-badge&logo=kotlin)](https://kotlinlang.org/)
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/wasifshaffaq/ftpdroid?color=%2300BCD4&label=Latest%20Release&style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/github/license/wasifshaffaq/ftpdroid?color=orange&style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/Platform-Android-green?style=for-the-badge&logo=android" alt="Platform">
+  <img src="https://img.shields.io/badge/Kotlin-2.0%2B-blue?style=for-the-badge&logo=kotlin" alt="Kotlin">
+</p>
 
-**FTPDroid** is a complete, dual-mode FTP solution for Android, built with the latest **Material 3 Expressive** design system. Whether you need to turn your phone into a powerful FTP server for local file sharing or connect to remote servers as a client, FTPDroid provides a seamless, high-performance experience.
+---
+
+**FTPDroid** is a high-performance, dual-mode FTP solution for Android, meticulously crafted with the **Material 3 Expressive** design system. It serves as both a powerful FTP/SFTP client and a robust FTP server, enabling seamless file management and sharing directly from your mobile device.
 
 > [!IMPORTANT]
-> This app is built with **Jetpack Compose** and targets **Android 15 (SDK 35)**, ensuring compatibility with the latest Android features and security standards.
+> This application is built with **Jetpack Compose** and leverages **Android 15 (SDK 35)** features, ensuring top-tier performance, modern security standards, and a future-proof architecture.
 
 ---
 
-## 📸 Preview
+## 📸 visual Preview
 
-![FTPDroid Hero Image](https://via.placeholder.com/800x400?text=FTPDroid+Material+3+Expressive+UI)
-
----
-
-## 🚀 Key Features
-
-### 🖥️ SERVER MODE
-Transform your Android device into a robust FTP server.
-- **One-Tap Start:** Quickly toggle your server on/off.
-- **Configurable Port:** Default to 2121 (no root required).
-- **Flexible Auth:** Supports both Anonymous access and Username/Password authentication.
-- **User Management:** Create multiple users with granular permissions (Read/Write/Delete) and custom root directories.
-- **Connection QR:** Generate a QR code for instant laptop-to-phone connection.
-- **Live Logs:** Monitor active connections and transfer history in real-time.
-
-### 💻 CLIENT MODE
-Connect to any remote storage with ease.
-- **Multi-Protocol:** Supports **FTP, FTPS (Explicit/Implicit), and SFTP (via SSH)**.
-- **Profile Manager:** Save and organize multiple server profiles for quick access.
-- **Advanced File Browser:** Multi-select support, search, sorting, and hidden files toggle.
-- **Background Transfers:** Continue your uploads and downloads even when the app is in the background.
-- **Resume Support:** Interrupted transfers can be resumed from where they left off.
-
-### ✨ MATERIAL 3 EXPRESSIVE UI
-Experience the future of Android design.
-- **Spring Physics:** Fluid, bouncy animations for a more tactile feel.
-- **Dynamic Color:** Fully supports Monet theming (Android 12+ wallpaper-based colors).
-- **Adaptive Layouts:** Optimized for phones, tablets, and foldables.
-- **Dark Mode:** Gorgeous, high-contrast dark theme.
+<p align="center">
+  <img src="https://via.placeholder.com/800x450.png?text=FTPDroid+Material+3+Expressive+UI+Overview" alt="FTPDroid UI Preview" width="800">
+</p>
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## 🚀 core Features
 
-FTPDroid is built using modern Android development best practices:
+### 🛠️ Professional Client Mode
+Connect and manage remote files with ease.
+- **Multi-Protocol Support:** Full support for **FTP, FTPS (Explicit/Implicit), and SFTP (SSH)**.
+- **Advanced Profile Management:** Securely store and organize unlimited server profiles.
+- **Background Transfer Engine:** Reliable uploads and downloads that persist even when the app is minimized.
+- **Intelligent Resume:** Automatically resume interrupted transfers to save time and bandwidth.
+- **Enhanced Navigation:** Multi-select operations, deep search, and intuitive sorting.
 
-- **Language:** Kotlin 2.0 (with KSP)
-- **UI:** Jetpack Compose with Material 3 Expressive (1.4.0-alpha)
-- **Architecture:** Clean Architecture + MVVM + MVI for predictable UI state.
-- **DI:** Hilt (Dagger)
-- **Database:** Room for profiles and transfer history.
-- **Networking:** 
-    - Apache FtpServer (Server)
-    - Apache Commons Net (FTP/FTPS Client)
-    - Sshj (SFTP Client)
-- **Storage:** DataStore Preferences & Scoped Storage (SAF).
+### 📡 Robust Server Mode
+Turn your device into a localized cloud.
+- **Instant Deployment:** Single-tap server activation.
+- **Granular Security:** Manage multiple users with specific permissions (Read/Write/Delete) and isolated root directories.
+- **Rootless Operation:** Defaults to port `2121` for full functionality without requiring system root.
+- **QR Connection:** Generate instant connection tokens for rapid desktop-to-mobile pairing.
+- **Real-time Monitoring:** Live connection logs and active transfer tracking.
+
+### ✨ Material 3 Expressive Design
+Experience a refined, tactile interface.
+- **Adaptive UI:** Fluid layouts optimized for phones, foldables, and tablets.
+- **Dynamic Theming:** Deep integration with Android 12+ Monet engine for wallpaper-based colors.
+- **Haptic Feedback & Physics:** Spring-loaded animations and intuitive tactile responses.
+- **Biometric Security:** Optional app-level locking via fingerprint or face recognition.
 
 ---
 
-## 🏗️ Build & Develop
+## 🏗️ Architecture & Tech Stack
+
+FTPDroid follows **Clean Architecture** principles combined with **MVI (Model-View-Intent)** for a predictable and robust state management.
+
+| Layer | Technologies |
+| :--- | :--- |
+| **UI Framework** | Jetpack Compose (Material 3 Expressive) |
+| **Dependency Injection** | Hilt (Dagger) |
+| **Local Storage** | Room Database, DataStore Preferences |
+| **Networking (Client)** | Apache Commons Net, SSHJ |
+| **Networking (Server)** | Apache FtpServer, Apache MINA |
+| **Concurrency** | Kotlin Coroutines & Flow |
+
+### Project Structure
+```text
+ftpdroid
+├── app/src/main/kotlin/com/ftpdroid/app
+│   ├── data/           # Repositories, Database, Network implementations
+│   ├── di/             # Dependency Injection modules
+│   ├── domain/         # Use cases and domain models (Business Logic)
+│   ├── service/        # Background services for Server & Transfers
+│   └── ui/             # Compose Screens, Components, and Theme
+```
+
+---
+
+## 🛠️ Installation & Setup
 
 ### Prerequisites
-- Android Studio Ladybug (or newer)
-- JDK 17
-- Android SDK 35
+- Android Studio **Ladybug** (or newer)
+- JDK **17**
+- Android SDK **35**
 
-### Setup
-1. Clone the repository:
+### Build from Source
+1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/ftpdroid.git
+   git clone https://github.com/wasifshaffaq/ftpdroid.git
    ```
-2. Open the project in Android Studio.
-3. Sync Project with Gradle Files.
-4. Run the `app` module on your device or emulator.
+2. **Open in Android Studio:**
+   Import the project and allow Gradle to sync.
+3. **Configure `local.properties`:**
+   Ensure your SDK path is correctly set.
+4. **Run:**
+   Select the `app` configuration and deploy to your device or emulator.
 
 ---
 
-## 🎓 Documentation & Support
+## 📊 Project Insights
 
-> [!TIP]
-> For a deep dive into the technical specifications and architecture, refer to the [FTP Android App Blueprint](./FTP_Android_App_Blueprint.md).
+<p align="center">
+  <img src="https://img.shields.io/github/stars/wasifshaffaq/ftpdroid?style=for-the-badge&color=yellow" alt="Stars">
+  <img src="https://img.shields.io/github/forks/wasifshaffaq/ftpdroid?style=for-the-badge&color=blue" alt="Forks">
+  <img src="https://img.shields.io/github/issues/wasifshaffaq/ftpdroid?style=for-the-badge&color=red" alt="Issues">
+</p>
 
-- **Issues:** Found a bug? [Create an issue](https://github.com/yourusername/ftpdroid/issues).
-- **Discussions:** Want to suggest a feature? [Start a discussion](https://github.com/yourusername/ftpdroid/discussions).
-
----
-
-## 💖 Support the Project
-- Leave a ⭐ on GitHub if you find this project useful!
-- Contributions are welcome! Please read the [Contribution Guidelines](CONTRIBUTING.md) before submitting a PR.
-
----
-
-## 🏅 Contributors
-Thanks to everyone who has contributed to making FTPDroid better!
-
-[![Contributors](https://contrib.rocks/image?repo=yourusername/ftpdroid)](https://github.com/yourusername/ftpdroid/graphs/contributors)
-
----
-
-## 📊 Project Stats
-
-![GitHub Repo stars](https://img.shields.io/github/stars/yourusername/ftpdroid?style=for-the-badge&color=yellow)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/ftpdroid?style=for-the-badge&color=blue)
+### Contribution Graph
+[![Contributors](https://contrib.rocks/image?repo=wasifshaffaq/ftpdroid)](https://github.com/wasifshaffaq/ftpdroid/graphs/contributors)
 
 ---
 
 ## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the **MIT License**. See `LICENSE` for more information.
+
+---
+
+<p align="center">
+  Developed with ❤️ by <a href="https://github.com/wasifshaffaq">Wasif Shaffaq</a>
+</p>
