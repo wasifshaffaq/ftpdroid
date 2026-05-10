@@ -1,8 +1,6 @@
 # 📡 FTPDroid
 
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/wasifshaffaq/ftpdroid?color=%2300BCD4&label=Latest%20Release&style=for-the-badge" alt="Version">
-  <img src="https://img.shields.io/github/license/wasifshaffaq/ftpdroid?color=orange&style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Platform-Android-green?style=for-the-badge&logo=android" alt="Platform">
   <img src="https://img.shields.io/badge/Kotlin-2.0%2B-blue?style=for-the-badge&logo=kotlin" alt="Kotlin">
 </p>
