@@ -114,7 +114,20 @@ class SftpClientManager {
     ): FtpClientResult<Boolean> = withContext(Dispatchers.IO) {
         try {
             val client = sftpClient ?: return@withContext FtpClientResult.Error("Not connected")
-            client.put(localFile.absolutePath, remotePath)
+            val fileSize = localFile.length()
+            
+            client.getFileTransfer().apply {
+                setTransferListener(object : net.schmizz.sshj.xfer.TransferListener {
+                    override fun directory(name: String?) = null
+                    override fun file(name: String?, size: Long) = object : net.schmizz.sshj.common.StreamCopier.Listener {
+                        override fun reportProgress(transferred: Long) {
+                            progressListener?.onProgress(transferred, size)
+                        }
+                    }
+                })
+                upload(localFile.absolutePath, remotePath)
+            }
+            
             progressListener?.onComplete(true)
             FtpClientResult.Success(true)
         } catch (e: Exception) {
@@ -129,7 +142,22 @@ class SftpClientManager {
     ): FtpClientResult<Boolean> = withContext(Dispatchers.IO) {
         try {
             val client = sftpClient ?: return@withContext FtpClientResult.Error("Not connected")
-            client.get(remotePath, localFile.absolutePath)
+            
+            // Get file size for progress
+            val fileSize = try { client.stat(remotePath).size } catch (e: Exception) { 0L }
+
+            client.getFileTransfer().apply {
+                setTransferListener(object : net.schmizz.sshj.xfer.TransferListener {
+                    override fun directory(name: String?) = null
+                    override fun file(name: String?, size: Long) = object : net.schmizz.sshj.common.StreamCopier.Listener {
+                        override fun reportProgress(transferred: Long) {
+                            progressListener?.onProgress(transferred, size)
+                        }
+                    }
+                })
+                download(remotePath, localFile.absolutePath)
+            }
+
             progressListener?.onComplete(true)
             FtpClientResult.Success(true)
         } catch (e: Exception) {

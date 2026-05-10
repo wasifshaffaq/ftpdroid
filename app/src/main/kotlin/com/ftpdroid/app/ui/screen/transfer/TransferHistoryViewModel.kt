@@ -91,7 +91,7 @@ class TransferHistoryViewModel @Inject constructor(
                             },
                             startTime = transfer.startedAt,
                             endTime = transfer.completedAt ?: 0L,
-                            profileName = "Profile ${transfer.profileId}",
+                            profileName = if (transfer.profileId == -1L) "Incoming (FTP Server)" else "Profile ${transfer.profileId}",
                             errorMessage = transfer.errorMessage
                         )
                     }

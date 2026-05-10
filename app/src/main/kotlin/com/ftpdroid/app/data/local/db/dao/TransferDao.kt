@@ -23,7 +23,7 @@ interface TransferDao {
     @Query("SELECT * FROM transfers WHERE id = :id")
     suspend fun getTransferById(id: Long): TransferEntity?
 
-    @Query("SELECT * FROM transfers WHERE status IN ('QUEUED', 'IN_PROGRESS') ORDER BY startedAt ASC")
+    @Query("SELECT * FROM transfers WHERE status IN ('QUEUED', 'IN_PROGRESS') ORDER BY id ASC")
     fun getPendingTransfers(): Flow<List<TransferEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

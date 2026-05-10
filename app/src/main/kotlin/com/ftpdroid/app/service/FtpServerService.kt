@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -14,10 +15,8 @@ import com.ftpdroid.app.R
 import com.ftpdroid.app.data.local.prefs.ServerPreferences
 import com.ftpdroid.app.data.network.ftp.FtpServerManager
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -29,19 +28,67 @@ class FtpServerService : Service() {
     @Inject
     lateinit var serverPreferences: ServerPreferences
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
-    private var isRunning = false
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var stateJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        observeServerState()
+    }
+
+    private fun observeServerState() {
+        stateJob?.cancel()
+        stateJob = serviceScope.launch {
+            var isFirstEmission = true
+            ftpServerManager.state.collect { state ->
+                val initialStopped = isFirstEmission && state is FtpServerManager.ServerState.Stopped
+                isFirstEmission = false
+                
+                if (initialStopped) {
+                    android.util.Log.d("FtpServerService", "Ignoring initial Stopped state")
+                    return@collect
+                }
+
+                android.util.Log.d("FtpServerService", "Observed state: $state")
+                when (state) {
+                    is FtpServerManager.ServerState.Running -> {
+                        updateNotification("FTP Server running on port ${state.port}")
+                    }
+                    is FtpServerManager.ServerState.Stopped -> {
+                        android.util.Log.d("FtpServerService", "Server stopped, stopping service")
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
+                    is FtpServerManager.ServerState.Error -> {
+                        updateNotification("Error: ${state.message}")
+                        // Optionally stop after a delay or keep showing error
+                        delay(3000)
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
+                    is FtpServerManager.ServerState.Starting -> {
+                        updateNotification("Starting FTP Server on port ${state.port}...")
+                    }
+                }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         android.util.Log.d("FtpServerService", "onStartCommand received action: $action")
         when (action) {
-            ACTION_START -> startServer()
+            ACTION_START -> {
+                // For Android 12+, we MUST call startForeground quickly
+                val notification = createNotification("Starting FTP Server...")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+                startServer()
+            }
             ACTION_STOP -> stopServer()
             else -> android.util.Log.w("FtpServerService", "Unknown action received: $action")
         }
@@ -49,30 +96,30 @@ class FtpServerService : Service() {
     }
 
     private fun startServer() {
-        android.util.Log.d("FtpServerService", "startServer() called, isRunning: $isRunning")
-        if (isRunning) return
+        val currentState = ftpServerManager.state.value
+        android.util.Log.d("FtpServerService", "startServer() called, current state: $currentState")
+        if (currentState is FtpServerManager.ServerState.Running || 
+            currentState is FtpServerManager.ServerState.Starting) return
         
         val config = serverPreferences.getServerConfig()
-        android.util.Log.d("FtpServerService", "Starting server with config: $config")
         serviceScope.launch {
             try {
                 ftpServerManager.start(config)
-                isRunning = true
-                android.util.Log.d("FtpServerService", "Server manager start() completed successfully")
-                val notification = createNotification("FTP Server running on port ${config.port}")
-                startForeground(NOTIFICATION_ID, notification)
             } catch (e: Exception) {
                 android.util.Log.e("FtpServerService", "Error in startServer coroutine", e)
-                stopSelf()
             }
         }
     }
 
     private fun stopServer() {
+        android.util.Log.d("FtpServerService", "stopServer() called")
         ftpServerManager.stop()
-        isRunning = false
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+    }
+
+    private fun updateNotification(text: String) {
+        val notification = createNotification(text)
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
     private fun createNotificationChannel() {
@@ -115,7 +162,9 @@ class FtpServerService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        android.util.Log.d("FtpServerService", "onDestroy() called")
         ftpServerManager.stop()
+        serviceScope.cancel()
         super.onDestroy()
     }
 

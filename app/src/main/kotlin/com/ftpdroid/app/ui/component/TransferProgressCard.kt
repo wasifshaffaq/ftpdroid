@@ -45,9 +45,12 @@ fun TransferProgressCard(
     onCancel: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val progress = if (fileSize > 0) {
-        (transferredBytes.toFloat() / fileSize).coerceIn(0f, 1f)
-    } else 0f
+    val progress = if (fileSize > 0L) {
+        (transferredBytes.toFloat() / fileSize.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "progress")
 
     Card(modifier = modifier.fillMaxWidth()) {
@@ -114,11 +117,12 @@ fun TransferProgressCard(
                 )
             }
 
-            if (status == TransferStatus.IN_PROGRESS && speed > 0) {
-                val remainingBytes = fileSize - transferredBytes
-                val eta = remainingBytes / speed
+            if (status == TransferStatus.IN_PROGRESS) {
+                val eta = if (speed > 0) {
+                    ((fileSize - transferredBytes) / speed).toEtaString()
+                } else "Calculating..."
                 Text(
-                    text = "ETA: ${eta.toEtaString()}",
+                    text = "ETA: $eta",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

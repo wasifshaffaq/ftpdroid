@@ -46,6 +46,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import java.util.concurrent.ConcurrentHashMap
+
 sealed class ConnectionEvent {
     data class Connected(val ip: String, val username: String) : ConnectionEvent()
     data class Disconnected(val ip: String, val username: String, val durationSec: Long) : ConnectionEvent()
@@ -55,13 +57,20 @@ sealed class ConnectionEvent {
 }
 
 class LoggingFtplet(
+    private val scope: CoroutineScope,
     private val events: MutableSharedFlow<ConnectionEvent>,
     private val clientCount: AtomicInteger,
     private val onClientCountChanged: (Int) -> Unit,
-    private val startTimes: MutableMap<String, Long> = mutableMapOf()
+    private val startTimes: MutableMap<String, Long> = ConcurrentHashMap()
 ) : DefaultFtplet() {
 
     override fun init(ftpletContext: FtpletContext?) {}
+
+    private fun emitEvent(event: ConnectionEvent) {
+        scope.launch {
+            events.emit(event)
+        }
+    }
 
     override fun beforeCommand(session: FtpSession?, request: FtpRequest?): FtpletResult {
         val clientIp = session?.clientAddress?.address?.hostAddress ?: return FtpletResult.DEFAULT
@@ -74,16 +83,35 @@ class LoggingFtplet(
             }
             "DELE", "RMD" -> {
                 val path = request.argument ?: ""
-                events.tryEmit(ConnectionEvent.FileDelete(path))
+                emitEvent(ConnectionEvent.FileDelete(path))
             }
             "RETR" -> {
                 val path = request.argument ?: ""
-                val size = try { session?.fileSystemView?.getFile(path)?.size ?: 0L } catch (e: Exception) { 0L }
-                events.tryEmit(ConnectionEvent.TransferStarted(sessionId, path, TransferType.DOWNLOAD, size))
+                val ftpFile = try { session?.fileSystemView?.getFile(path) } catch (e: Exception) { null }
+                val size = ftpFile?.size ?: 0L
+                val absolutePath = ftpFile?.absolutePath ?: path
+                val homeDir = session?.user?.homeDirectory ?: ""
+                val physicalPath = if (homeDir.isNotEmpty() && absolutePath.isNotEmpty()) {
+                    val relativePath = if (absolutePath.startsWith("/")) absolutePath.substring(1) else absolutePath
+                    File(homeDir, relativePath).absolutePath
+                } else {
+                    path
+                }
+                emitEvent(ConnectionEvent.TransferStarted(sessionId, physicalPath, TransferType.DOWNLOAD, size))
             }
             "STOR", "APPE" -> {
                 val path = request.argument ?: ""
-                events.tryEmit(ConnectionEvent.TransferStarted(sessionId, path, TransferType.UPLOAD, 0L))
+                val ftpFile = try { session?.fileSystemView?.getFile(path) } catch (e: Exception) { null }
+                val absolutePath = ftpFile?.absolutePath ?: path
+                val homeDir = session?.user?.homeDirectory ?: ""
+                val physicalPath = if (homeDir.isNotEmpty() && absolutePath.isNotEmpty()) {
+                    val relativePath = if (absolutePath.startsWith("/")) absolutePath.substring(1) else absolutePath
+                    File(homeDir, relativePath).absolutePath
+                } else {
+                    path
+                }
+                Log.d("FTPD_POLL", "Physical path resolved: $physicalPath | File exists: ${File(physicalPath).exists()}")
+                emitEvent(ConnectionEvent.TransferStarted(sessionId, physicalPath, TransferType.UPLOAD, 0L))
             }
         }
         return FtpletResult.DEFAULT
@@ -99,17 +127,17 @@ class LoggingFtplet(
         when (command) {
             "RETR" -> {
                 val path = request.argument ?: ""
-                val size = try {
-                    session?.fileSystemView?.getFile(path)?.size ?: 0L
-                } catch (e: Exception) { 0L }
-                events.tryEmit(ConnectionEvent.TransferFinished(sessionId, path, size, isSuccess, TransferType.DOWNLOAD))
+                val ftpFile = try { session?.fileSystemView?.getFile(path) } catch (e: Exception) { null }
+                val size = ftpFile?.size ?: 0L
+                emitEvent(ConnectionEvent.TransferFinished(sessionId, path, size, isSuccess, TransferType.DOWNLOAD))
             }
             "STOR", "APPE" -> {
                 val path = request.argument ?: ""
-                val size = try {
-                    session?.fileSystemView?.getFile(path)?.size ?: 0L
-                } catch (e: Exception) { 0L }
-                events.tryEmit(ConnectionEvent.TransferFinished(sessionId, path, size, isSuccess, TransferType.UPLOAD))
+                val ftpFile = try { session?.fileSystemView?.getFile(path) } catch (e: Exception) { null }
+                // For uploads, the size in ftpFile might not be updated yet, so we'll check the physical file later in the collector if needed,
+                // but let's try to get it here first.
+                val size = ftpFile?.size ?: 0L
+                emitEvent(ConnectionEvent.TransferFinished(sessionId, path, size, isSuccess, TransferType.UPLOAD))
             }
         }
         return FtpletResult.DEFAULT
@@ -120,7 +148,7 @@ class LoggingFtplet(
         val user = session?.user?.name ?: "anonymous"
         val count = clientCount.incrementAndGet()
         onClientCountChanged(count)
-        events.tryEmit(ConnectionEvent.Connected(clientIp, user))
+        emitEvent(ConnectionEvent.Connected(clientIp, user))
         return FtpletResult.DEFAULT
     }
 
@@ -130,7 +158,7 @@ class LoggingFtplet(
         val count = clientCount.decrementAndGet()
         onClientCountChanged(count)
         val durationSec = startTimes[clientIp]?.let { (System.currentTimeMillis() - it) / 1000 } ?: 0L
-        events.tryEmit(ConnectionEvent.Disconnected(clientIp, user, durationSec))
+        emitEvent(ConnectionEvent.Disconnected(clientIp, user, durationSec))
         startTimes.remove(clientIp)
         return FtpletResult.DEFAULT
     }
@@ -159,10 +187,10 @@ class FtpServerManager @Inject constructor(
     private val _state = MutableStateFlow<ServerState>(ServerState.Stopped)
     val state: StateFlow<ServerState> = _state.asStateFlow()
 
-    private val _connectionEvents = MutableSharedFlow<ConnectionEvent>(extraBufferCapacity = 64)
+    private val _connectionEvents = MutableSharedFlow<ConnectionEvent>(extraBufferCapacity = 128)
     val connectionEvents: SharedFlow<ConnectionEvent> = _connectionEvents.asSharedFlow()
 
-    private val activeTransfers = mutableMapOf<String, Long>()
+    private val activeTransfers = ConcurrentHashMap<String, Long>()
     private var progressJob: Job? = null
 
     var startTime = 0L
@@ -210,9 +238,15 @@ class FtpServerManager @Inject constructor(
                             if (transferId != null) {
                                 val transfer = transferRepository.getTransferById(transferId)
                                 if (transfer != null) {
+                                    val finalSize = if (event.size <= 0 && transfer.type == TransferType.UPLOAD) {
+                                        File(transfer.remotePath).length()
+                                    } else {
+                                        event.size
+                                    }
+                                    
                                     transferRepository.updateTransfer(transfer.copy(
-                                        transferredBytes = event.size,
-                                        totalBytes = event.size,
+                                        transferredBytes = finalSize,
+                                        totalBytes = if (transfer.totalBytes <= 0) finalSize else transfer.totalBytes,
                                         status = if (event.success) TransferStatus.COMPLETED else TransferStatus.FAILED,
                                         completedAt = if (event.success) System.currentTimeMillis() else null,
                                         speedBytesPerSec = 0
@@ -256,8 +290,10 @@ class FtpServerManager @Inject constructor(
                     // Re-checking the file size on disk for uploads (STOR) is the most reliable high-level way.
                     if (transfer.type == TransferType.UPLOAD) {
                         val file = File(transfer.remotePath) // In server mode, remotePath is the local path on device
-                        if (file.exists()) {
-                            val currentSize = file.length()
+                        val exists = file.exists()
+                        val currentSize = if (exists) file.length() else 0L
+                        Log.d("FTPD_POLL", "Poll tick | id=$transferId | exists=$exists | size=$currentSize | path=${transfer.remotePath}")
+                        if (exists) {
                             val previousSize = transfer.transferredBytes
                             val speed = if (currentSize > previousSize) currentSize - previousSize else 0L
                             transferRepository.updateTransferProgress(transferId, currentSize, speed)
@@ -297,6 +333,7 @@ class FtpServerManager @Inject constructor(
             Log.d(TAG, "Connection config created")
 
             val ftplet = LoggingFtplet(
+                managerScope,
                 _connectionEvents,
                 clientCount,
                 onClientCountChanged = { count ->
@@ -367,8 +404,23 @@ class FtpServerManager @Inject constructor(
     }
 
     fun stop() {
-        try { ftpServer?.stop(); ftpServer = null } catch (_: Exception) {}
+        Log.d(TAG, "stop() called")
+        val server = ftpServer
+        ftpServer = null // Set to null immediately to allow restart attempts
+        
+        try {
+            server?.stop()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping FTP server", e)
+        }
+        
+        // Reset state
+        clientCount.set(0)
+        activeTransfers.clear()
+        stopProgressPolling()
+        
         _state.value = ServerState.Stopped
+        Log.d(TAG, "Server stopped and resources cleared")
     }
 
     fun getLocalIpAddress(): String {

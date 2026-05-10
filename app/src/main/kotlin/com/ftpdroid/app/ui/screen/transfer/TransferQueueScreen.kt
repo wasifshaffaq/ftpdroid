@@ -108,7 +108,10 @@ fun TransferQueueScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(uiState.activeTransfers) { transfer ->
+                    items(
+                        items = uiState.activeTransfers,
+                        key = { it.id }
+                    ) { transfer ->
                         TransferCard(
                             transfer = transfer,
                             onPause = { viewModel.onIntent(TransferQueueIntent.PauseTransfer(transfer.id)) },
@@ -129,9 +132,11 @@ private fun TransferCard(
     onResume: () -> Unit,
     onCancel: () -> Unit
 ) {
-    val progress = if (transfer.fileSize > 0) {
-        (transfer.transferredBytes.toFloat() / transfer.fileSize).coerceIn(0f, 1f)
-    } else 0f
+    val progress = if (transfer.fileSize > 0L) {
+        (transfer.transferredBytes.toFloat() / transfer.fileSize.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "progress")
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -207,7 +212,7 @@ private fun TransferCard(
                 if (transfer.status == TransferStatus.IN_PROGRESS) {
                     val eta = if (transfer.speed > 0) {
                         ((transfer.fileSize - transfer.transferredBytes) / transfer.speed).toEtaString()
-                    } else ""
+                    } else "Calculating..."
                     Text(
                         text = "ETA: $eta",
                         style = MaterialTheme.typography.labelMedium,

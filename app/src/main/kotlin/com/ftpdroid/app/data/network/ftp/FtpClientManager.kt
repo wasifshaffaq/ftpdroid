@@ -146,6 +146,11 @@ class FtpClientManager {
         localFile: File
     ): FtpClientResult<Boolean> = withContext(Dispatchers.IO) {
         try {
+            // Get file size for progress BEFORE opening the stream
+            val fileSize = try {
+                ftpClient?.listFiles(remotePath)?.firstOrNull()?.size ?: 0L
+            } catch (e: Exception) { 0L }
+
             val outputStream = FileOutputStream(localFile)
             val inputStream: InputStream? = ftpClient?.retrieveFileStream(remotePath)
 
@@ -157,11 +162,6 @@ class FtpClientManager {
             val buffer = ByteArray(16384)
             var bytesRead: Int
             var totalBytesRead = 0L
-            
-            // Get file size for progress
-            val fileSize = try {
-                ftpClient?.listFiles(remotePath)?.firstOrNull()?.size ?: 0L
-            } catch (e: Exception) { 0L }
 
             try {
                 while (inputStream.read(buffer).also { bytesRead = it } != -1) {

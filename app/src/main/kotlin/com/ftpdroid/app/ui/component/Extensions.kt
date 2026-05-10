@@ -176,6 +176,6 @@ fun calculateSpeed(bytesTransferred: Long, elapsedMillis: Long): Long {
 }
 
 fun calculateProgress(transferred: Long, total: Long): Float {
-    if (total <= 0) return 0f
+    if (total <= 0L) return 0f
     return (transferred.toFloat() / total.toFloat()).coerceIn(0f, 1f)
 }

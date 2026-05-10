@@ -97,7 +97,7 @@ class TransferQueueViewModel @Inject constructor(
                         },
                         speed = transfer.speedBytesPerSec,
                         startTime = transfer.startedAt,
-                        profileName = "Profile ${transfer.profileId}" // In a real app we'd fetch the name
+                        profileName = if (transfer.profileId == -1L) "Incoming (FTP Server)" else "Profile ${transfer.profileId}"
                     )
                 }
                 _uiState.value = _uiState.value.copy(
